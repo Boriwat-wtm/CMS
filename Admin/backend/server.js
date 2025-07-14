@@ -266,10 +266,69 @@ app.post("/api/stat-slip", (req, res) => {
   res.json({ success: true });
 });
 
-// API สำหรับรีพอร์ต
+// API สำหรับดูรายงานจาก User backend
+app.get("/api/admin/report", async (req, res) => {
+  try {
+    console.log("=== Admin report request received");
+    
+    // อ่านไฟล์ report.json
+    const reportPath = path.join(__dirname, 'report.json');
+    
+    if (!fs.existsSync(reportPath)) {
+      console.log("report.json not found");
+      return res.json([]);
+    }
+    
+    const data = await fs.promises.readFile(reportPath, 'utf8');
+    const reports = JSON.parse(data);
+    
+    console.log("Returning reports:", reports.length);
+    res.json(reports);
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+});
+
+// API สำหรับรับรายงานจาก User backend
 app.post("/api/report", (req, res) => {
-  console.log('Received report:', req.body);
-  res.json({ success: true });
+  try {
+    console.log('=== Received report from User backend:', req.body);
+    
+    // บันทึกข้อมูลลงไฟล์ report.json
+    const reportPath = path.join(__dirname, 'report.json');
+    let reports = [];
+    
+    // อ่านข้อมูลเดิม (ถ้ามี)
+    if (fs.existsSync(reportPath)) {
+      const data = fs.readFileSync(reportPath, 'utf8');
+      reports = JSON.parse(data);
+    }
+    
+    // เพิ่มรายงานใหม่
+    const newReport = {
+      ...req.body,
+      id: Date.now().toString(),
+      receivedAt: new Date().toISOString()
+    };
+    
+    reports.push(newReport);
+    
+    // บันทึกลงไฟล์
+    fs.writeFileSync(reportPath, JSON.stringify(reports, null, 2));
+    
+    console.log('Report saved successfully');
+    res.json({ success: true, message: 'Report received successfully' });
+  } catch (error) {
+    console.error('Error saving report:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
 });
 
 // Health check endpoint
@@ -287,6 +346,7 @@ app.listen(PORT, async () => {
   console.log(`Health check: http://localhost:${PORT}/health`);
   console.log(`Queue API: http://localhost:${PORT}/api/queue`);
   console.log(`Login API: http://localhost:${PORT}/login`);
+  console.log(`Report API: http://localhost:${PORT}/api/admin/report`);
   
   // โหลดและแสดงผู้ใช้ที่มีอยู่
   try {
